@@ -450,6 +450,318 @@ aws ssm create-document \
     }'
 ```
 
+## Automation Patterns
+
+### Dynamic Bastion Discovery
+Find bastion instances by tag instead of hardcoding instance IDs.
+
+```bash
+# Find bastion by tag
+BASTION_ID=$(aws ec2 describe-instances \
+    --filters "Name=tag:Role,Values=bastion" \
+              "Name=instance-state-name,Values=running" \
+    --query 'Reservations[0].Instances[0].InstanceId' \
+    --output text)
+
+# Verify bastion found
+if [ "$BASTION_ID" = "None" ] || [ -z "$BASTION_ID" ]; then
+    echo "Error: No running bastion instance found"
+    exit 1
+fi
+
+# Use in SSM session
+aws ssm start-session --target "$BASTION_ID"
+
+# Find by multiple tags (environment + role)
+BASTION_ID=$(aws ec2 describe-instances \
+    --filters "Name=tag:Environment,Values=production" \
+              "Name=tag:Role,Values=bastion" \
+              "Name=instance-state-name,Values=running" \
+    --query 'Reservations[0].Instances[0].InstanceId' \
+    --output text)
+```
+
+### Clean Shell Environment
+Ensure SSO credentials aren't overridden by static environment variables.
+
+```bash
+# Clear any static credentials before SSO login
+unset AWS_ACCESS_KEY_ID
+unset AWS_SECRET_ACCESS_KEY
+unset AWS_SESSION_TOKEN
+
+# Now SSO login works correctly
+export AWS_PROFILE=my-sso-profile
+aws sso login
+
+# Verify using SSO credentials (not static)
+aws configure list
+# Should show: profile my-sso-profile, not environment variables
+
+# Full clean environment script
+clean_aws_env() {
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+    unset AWS_SESSION_TOKEN
+    unset AWS_SECURITY_TOKEN
+    echo "Cleared static AWS credentials from environment"
+}
+```
+
+### Credential Validation Patterns
+Check if credentials are valid before proceeding.
+
+```bash
+# Validate credentials (returns 0 if valid, non-zero if expired/invalid)
+validate_aws_creds() {
+    if aws sts get-caller-identity &>/dev/null; then
+        echo "✓ AWS credentials valid"
+        aws sts get-caller-identity --query 'Arn' --output text
+        return 0
+    else
+        echo "✗ AWS credentials invalid or expired"
+        return 1
+    fi
+}
+
+# Auto-login if credentials expired (SSO profiles)
+ensure_aws_login() {
+    if ! aws sts get-caller-identity &>/dev/null; then
+        echo "Credentials expired, logging in..."
+        aws sso login --profile "${AWS_PROFILE:-default}"
+    fi
+}
+
+# Use in scripts
+ensure_aws_login
+aws s3 ls
+
+# Check profile before operations
+check_profile() {
+    local current=$(aws configure list --query 'profile' --output text 2>/dev/null)
+    echo "Current profile: ${AWS_PROFILE:-default}"
+    echo "Account: $(aws sts get-caller-identity --query 'Account' --output text)"
+    echo "ARN: $(aws sts get-caller-identity --query 'Arn' --output text)"
+}
+```
+
+### Port Conflict Resolution
+Handle "Address already in use" errors.
+
+```bash
+# Check what's using a port
+lsof -i :5432
+
+# Find and show process on port
+check_port() {
+    local port=$1
+    local pid=$(lsof -ti :$port 2>/dev/null)
+    if [ -n "$pid" ]; then
+        echo "Port $port in use by PID $pid:"
+        ps -p $pid -o pid,user,command
+        return 1
+    else
+        echo "Port $port is available"
+        return 0
+    fi
+}
+
+# Kill process on port (use with caution)
+free_port() {
+    local port=$1
+    local pid=$(lsof -ti :$port 2>/dev/null)
+    if [ -n "$pid" ]; then
+        echo "Killing process $pid on port $port"
+        kill -9 $pid
+        sleep 1
+    fi
+}
+
+# Smart port selection (find available port)
+find_available_port() {
+    local start_port=${1:-5432}
+    local port=$start_port
+    while lsof -ti :$port &>/dev/null; do
+        ((port++))
+    done
+    echo $port
+}
+
+# Example: auto-select port for DB tunnel
+LOCAL_PORT=$(find_available_port 5432)
+echo "Using port $LOCAL_PORT"
+```
+
+### Multiple Cluster Access
+Work with multiple EKS clusters simultaneously.
+
+```bash
+# Each terminal: different cluster
+# Terminal 1 (Dev)
+export AWS_PROFILE=dev-admin
+export KUBECONFIG=~/.kube/config-dev
+./connect-cluster.sh dev-cluster
+
+# Terminal 2 (Staging)
+export AWS_PROFILE=staging-admin
+export KUBECONFIG=~/.kube/config-staging
+./connect-cluster.sh staging-cluster
+
+# Terminal 3 (Prod - read only)
+export AWS_PROFILE=prod-readonly
+export KUBECONFIG=~/.kube/config-prod
+./connect-cluster.sh prod-cluster
+
+# Quick cluster context switch script
+use_cluster() {
+    local env=$1
+    case $env in
+        dev)
+            export AWS_PROFILE=dev-admin
+            export KUBECONFIG=~/.kube/config-dev
+            ;;
+        staging)
+            export AWS_PROFILE=staging-admin
+            export KUBECONFIG=~/.kube/config-staging
+            ;;
+        prod)
+            export AWS_PROFILE=prod-readonly
+            export KUBECONFIG=~/.kube/config-prod
+            ;;
+        *)
+            echo "Unknown environment: $env"
+            return 1
+            ;;
+    esac
+    echo "Switched to $env environment"
+    kubectl config current-context
+}
+```
+
+### Session Cleanup on Exit
+Ensure SSM sessions are cleaned up when shell exits.
+
+```bash
+#!/bin/bash
+# ssm-connect.sh - Connect with automatic cleanup
+
+SESSION_PID=""
+SSM_LOG="/tmp/ssm-session-$$.log"
+
+cleanup() {
+    echo "Cleaning up SSM session..."
+    [ -n "$SESSION_PID" ] && kill $SESSION_PID 2>/dev/null
+    rm -f "$SSM_LOG"
+    echo "Session terminated"
+}
+
+# Register cleanup on exit
+trap cleanup EXIT INT TERM
+
+# Start SSM port forwarding in background
+aws ssm start-session \
+    --target "$BASTION_ID" \
+    --document-name AWS-StartPortForwardingSessionToRemoteHost \
+    --parameters "{
+        \"host\":[\"$REMOTE_HOST\"],
+        \"portNumber\":[\"$REMOTE_PORT\"],
+        \"localPortNumber\":[\"$LOCAL_PORT\"]
+    }" > "$SSM_LOG" 2>&1 &
+
+SESSION_PID=$!
+
+# Wait for tunnel to establish
+sleep 3
+
+# Check if session is running
+if ! kill -0 $SESSION_PID 2>/dev/null; then
+    echo "Failed to start SSM session"
+    cat "$SSM_LOG"
+    exit 1
+fi
+
+echo "Tunnel established on localhost:$LOCAL_PORT"
+echo "Press Ctrl+C or type 'exit' to disconnect"
+
+# Start interactive shell
+$SHELL
+
+# Cleanup happens automatically via trap
+```
+
+### EKS Connection Script
+Complete script for connecting to private EKS clusters.
+
+```bash
+#!/bin/bash
+# eks-connect.sh <cluster-name> [local-port]
+
+CLUSTER_NAME=${1:?Usage: eks-connect.sh <cluster-name> [local-port]}
+LOCAL_PORT=${2:-6443}
+
+# Ensure clean environment
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+
+# Validate credentials
+if ! aws sts get-caller-identity &>/dev/null; then
+    echo "Please login first: aws sso login"
+    exit 1
+fi
+
+# Get cluster endpoint
+ENDPOINT=$(aws eks describe-cluster --name "$CLUSTER_NAME" \
+    --query 'cluster.endpoint' --output text)
+EKS_HOST=$(echo "$ENDPOINT" | sed 's|https://||')
+
+# Find bastion
+BASTION_ID=$(aws ec2 describe-instances \
+    --filters "Name=tag:Role,Values=bastion" \
+              "Name=instance-state-name,Values=running" \
+    --query 'Reservations[0].Instances[0].InstanceId' \
+    --output text)
+
+if [ "$BASTION_ID" = "None" ]; then
+    echo "Error: No bastion found"
+    exit 1
+fi
+
+# Check port availability
+if lsof -ti :$LOCAL_PORT &>/dev/null; then
+    echo "Port $LOCAL_PORT in use, finding alternative..."
+    LOCAL_PORT=$(find_available_port $LOCAL_PORT)
+fi
+
+echo "Connecting to $CLUSTER_NAME via $BASTION_ID on port $LOCAL_PORT"
+
+# Update kubeconfig
+aws eks update-kubeconfig --name "$CLUSTER_NAME" 2>/dev/null
+# Override server to use local port
+kubectl config set-cluster "$CLUSTER_NAME" --server="https://127.0.0.1:$LOCAL_PORT"
+
+# Start session (cleanup via trap)
+trap 'kill $SSM_PID 2>/dev/null; exit' EXIT INT TERM
+
+aws ssm start-session \
+    --target "$BASTION_ID" \
+    --document-name AWS-StartPortForwardingSessionToRemoteHost \
+    --parameters "{
+        \"host\":[\"$EKS_HOST\"],
+        \"portNumber\":[\"443\"],
+        \"localPortNumber\":[\"$LOCAL_PORT\"]
+    }" &
+SSM_PID=$!
+
+sleep 3
+
+echo "Connected! Run kubectl commands in this shell."
+echo "Type 'exit' to disconnect."
+
+# Interactive shell with custom KUBECONFIG
+KUBECONFIG=~/.kube/config $SHELL
+```
+
+---
+
 ## Useful Queries
 
 ```bash
