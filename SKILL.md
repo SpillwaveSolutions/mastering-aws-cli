@@ -2,7 +2,7 @@
 name: mastering-aws-cli
 version: 2.0.0
 description: |
-  AWS CLI v2 quick-reference for experienced developers. Covers compute (Lambda, ECS, EKS), storage (S3, DynamoDB, Aurora), networking (VPC, SSM tunneling), security (IAM, Secrets Manager), and GitHub Actions CI/CD. Use when writing aws commands, debugging access issues, or setting up cross-account roles.
+  AWS CLI v2 quick-reference for experienced developers. Covers compute (Lambda, ECS, EKS), storage (S3, DynamoDB, Aurora), networking (VPC, SSM tunneling), security (IAM, Secrets Manager), and GitHub Actions CI/CD. Use when asked to "write aws commands", "debug aws access", "set up cross-account roles", or "configure aws cli".
 triggers:
   - aws cli
   - aws command line
@@ -63,13 +63,6 @@ aws sts get-caller-identity     # Shows Account, UserId, ARN
 # Enable auto-prompt for command discovery
 aws dynamodb --cli-auto-prompt
 ```
-
-## When Not to Use
-
-- **AWS SDK code** — For boto3, AWS SDK for JavaScript, etc., use programming documentation
-- **CloudFormation/Terraform** — This skill covers CLI commands, not IaC templates
-- **Console UI steps** — CLI-focused; use AWS documentation for console walkthroughs
-- **Pricing/billing** — Use AWS pricing calculator or Cost Explorer documentation
 
 ## Power User Tips
 
@@ -246,6 +239,13 @@ aws lambda wait function-updated --function-name my-function
 | **Regions** | Explicitly set region in scripts to avoid surprises |
 | **Cost** | Use lifecycle policies (S3/ECR) for automatic cleanup |
 | **Debugging** | Use `--debug` to see raw HTTP requests/responses |
+
+## When Not to Use
+
+- **AWS SDK code** — For boto3, AWS SDK for JavaScript, etc., use programming documentation
+- **CloudFormation/Terraform** — This skill covers CLI commands, not IaC templates
+- **Console UI steps** — CLI-focused; use AWS documentation for console walkthroughs
+- **Pricing/billing** — Use AWS pricing calculator or Cost Explorer documentation
 
 ## Quick Command Reference
 
