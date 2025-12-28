@@ -37,6 +37,10 @@ triggers:
 category: cloud-infrastructure
 author: Spillwave
 license: MIT
+allowed-tools:
+  - Read
+  - Bash
+  - WebFetch
 ---
 
 # AWS CLI v2 Quick Reference
