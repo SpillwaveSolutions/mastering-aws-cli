@@ -1,6 +1,5 @@
 ---
 name: mastering-aws-cli
-version: 2.0.0
 description: |
   AWS CLI v2 quick-reference for experienced developers. Covers compute (Lambda, ECS, EKS), storage (S3, DynamoDB, Aurora), networking (VPC, SSM tunneling), security (IAM, Secrets Manager), and GitHub Actions CI/CD. Use when asked to "write aws commands", "debug aws access", "set up cross-account roles", "configure aws cli", "assume role", "S3 bucket operations", or "deploy to ECS".
 triggers:
@@ -35,12 +34,14 @@ triggers:
   - ssm tunnel
   - kubectl eks
 category: cloud-infrastructure
-author: Spillwave
 license: MIT
 allowed-tools:
   - Read
   - Bash
   - WebFetch
+metadata:
+  version: 2.1.0
+  author: Spillwave
 ---
 
 # AWS CLI v2 Quick Reference
