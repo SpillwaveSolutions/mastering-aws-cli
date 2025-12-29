@@ -6,9 +6,21 @@ A comprehensive Claude Code skill for AWS CLI v2 quick-reference, designed for e
 
 This skill provides instant access to AWS CLI commands, patterns, and best practices. It covers compute, storage, networking, security, and CI/CD integration with GitHub Actions.
 
+### What's Included
+
+- **Compute & Containers**: Lambda, ECS, EKS, ECR, EC2
+- **Storage & Databases**: S3, DynamoDB, Aurora/RDS
+- **Streaming & Messaging**: MSK (Kafka), Kinesis, SQS, SNS
+- **Data & ETL**: Glue (Catalog/Crawlers/Jobs)
+- **Security**: IAM, STS, Secrets Manager, SSM Parameter Store
+- **Networking**: VPC, Security Groups, SSM Tunneling
+- **CI/CD**: GitHub Actions, OIDC Federation
+
 ## Installing with Skilz (Universal Installer)
 
 The recommended way to install this skill across different AI coding agents is using the **skilz** universal installer.
+
+This skill supports [Agent Skill Standard](https://agentskills.io/) which means it supports 14+ coding agents including Claude Code, OpenAI Codex, Cursor, and Gemini.
 
 ### Install Skilz
 
@@ -16,10 +28,7 @@ The recommended way to install this skill across different AI coding agents is u
 pip install skilz
 ```
 
-This skill supports [Agent Skill Standard](https://agentskills.io/) which means it supports 14 plus coding agents including Claude Code, OpenAI Codex, Cursor and Gemini.
-
-
-### Git URL Options
+### Quick Install from Git
 
 You can use either `-g` or `--git` with HTTPS or SSH URLs:
 
@@ -55,7 +64,7 @@ Project-level install:
 skilz install -g https://github.com/SpillwaveSolutions/mastering-aws-cli --project --agent opencode
 ```
 
-### Gemini
+### Gemini CLI
 
 Project-level install for Gemini:
 ```bash
@@ -74,9 +83,9 @@ Project-level install:
 skilz install -g https://github.com/SpillwaveSolutions/mastering-aws-cli --project --agent codex
 ```
 
+### Install from SkillzWave Marketplace
 
-### Install from Skillzwave Marketplace
-```
+```bash
 # Claude to user home dir ~/.claude/skills
 skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli
 
@@ -90,26 +99,22 @@ skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli --agent ope
 skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli --agent opencode --project
 
 # OpenAI Codex install to user home dir ~/.codex/skills
-skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli
+skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli --agent codex
 
 # OpenAI Codex project level ./.codex/skills
-skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli --agent opencode --project
+skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli --agent codex --project
 
-
-# Gemini CLI (project level) -- only works with project level
+# Gemini CLI (project level only)
 skilz install SpillwaveSolutions_mastering-aws-cli/mastering-aws-cli --agent gemini
-
 ```
 
-See this site [skill Listing](https://skillzwave.ai/skill/SpillwaveSolutions__mastering-aws-cli__mastering-aws-cli__SKILL/) to see how to install this exact skill to 14+ different coding agents.
-
+See the [Skill Listing](https://skillzwave.ai/skill/SpillwaveSolutions__mastering-aws-cli__mastering-aws-cli__SKILL/) for installation instructions for all 14+ supported coding agents.
 
 ### Other Supported Agents
 
 Skilz supports 14+ coding agents including Windsurf, Qwen Code, Aidr, and more.
 
-For the full list of supported platforms, visit [SkillzWave.ai/platforms](https://skillzwave.ai/platforms/) or see the [skilz-cli GitHub repository](https://github.com/SpillwaveSolutions/skilz-cli)
-
+For the full list of supported platforms, visit [SkillzWave.ai/platforms](https://skillzwave.ai/platforms/) or see the [skilz-cli GitHub repository](https://github.com/SpillwaveSolutions/skilz-cli).
 
 ## Manual Installation
 
@@ -127,27 +132,19 @@ ln -s "$(pwd)" ~/.claude/skills/mastering-aws-cli
 
 The skill activates automatically when you mention AWS-related topics:
 
-- "How do I assume an IAM role?"
-- "Show me ECS deployment commands"
-- "Set up GitHub Actions with AWS OIDC"
+```
+"How do I assume an IAM role?"
+"Show me ECS deployment commands"
+"Set up GitHub Actions with AWS OIDC"
+"Deploy a Lambda function from a zip file"
+"Configure S3 lifecycle policies"
+```
 
-## Coverage
-
-| Category | Services |
-|:---------|:---------|
-| **Compute** | Lambda, ECS, EKS, EC2 |
-| **Storage** | S3, DynamoDB, Aurora/RDS |
-| **Streaming** | MSK (Kafka), Kinesis |
-| **Data** | Glue (ETL/Catalog) |
-| **Security** | IAM, Secrets Manager, SSM Parameter Store |
-| **Networking** | VPC, Security Groups, SSM Tunneling |
-| **CI/CD** | GitHub Actions, OIDC Federation |
-
-## Structure
+## Skill Structure
 
 ```
 mastering-aws-cli/
-├── SKILL.md                    # Main skill definition
+├── SKILL.md                    # Main skill definition with decision trees
 ├── README.md                   # This file
 └── references/
     ├── setup.md                # Installation, SSO, profiles
@@ -168,22 +165,68 @@ mastering-aws-cli/
     └── advanced-patterns.md    # JMESPath, waiters, aliases
 ```
 
+## Quick Reference
+
+### Essential Commands
+
+```bash
+# Identity & Access
+aws sts get-caller-identity              # Verify identity
+aws configure sso                        # Set up SSO (recommended)
+aws sso login --profile prod             # Refresh SSO session
+
+# S3
+aws s3 ls                                # List buckets
+aws s3 sync ./local s3://bucket/prefix   # Sync directories
+
+# Lambda
+aws lambda invoke --function-name fn response.json
+aws lambda update-function-code --function-name fn --zip-file fileb://code.zip
+
+# ECS
+aws ecs list-clusters
+aws ecs update-service --cluster prod --service api --force-new-deployment
+
+# EKS
+aws eks update-kubeconfig --name my-cluster
+kubectl get pods
+
+# Secrets
+aws secretsmanager get-secret-value --secret-id prod/api/key --query SecretString --output text
+aws ssm get-parameter --name /app/db/host --with-decryption
+```
+
 ## Triggers
 
 The skill responds to these keywords:
-- Services: `lambda`, `ecs`, `eks`, `ecr`, `s3`, `dynamodb`, `aurora`, `rds`, `glue`, `msk`, `kinesis`
-- Security: `iam`, `sts`, `assume role`, `secrets manager`, `parameter store`
-- Networking: `vpc`, `bastion`, `ssm tunnel`
-- Setup: `aws configure`, `aws sso`
-- CI/CD: `github actions aws`, `oidc aws`
+
+| Category | Keywords |
+|:---------|:---------|
+| **Services** | `lambda`, `ecs`, `eks`, `ecr`, `s3`, `dynamodb`, `aurora`, `rds`, `glue`, `msk`, `kinesis` |
+| **Security** | `iam`, `sts`, `assume role`, `secrets manager`, `parameter store` |
+| **Networking** | `vpc`, `bastion`, `ssm tunnel` |
+| **Setup** | `aws configure`, `aws sso` |
+| **CI/CD** | `github actions aws`, `oidc aws` |
+
+## Progressive Disclosure Architecture
+
+This skill uses a three-level loading system for efficient context usage:
+
+1. **Metadata** (~100 words) - Always loaded, triggers skill activation
+2. **SKILL.md** (<5K words) - Quick reference with decision trees
+3. **References** (unlimited) - Detailed docs loaded on-demand
+
+When you ask about a specific topic, Claude loads only the relevant reference file.
 
 ## Version
 
-- **Version:** 2.0.0
+- **Version:** 2.1.0
 - **Author:** Spillwave
 - **License:** MIT
 
 ## Contributing
+
+Contributions welcome! Please:
 
 1. Fork this repository
 2. Add or update reference files in `references/`
@@ -192,10 +235,9 @@ The skill responds to these keywords:
 
 ## Related Skills
 
-- `mastering-gcloud-cli` - Google Cloud CLI reference
-- `gcloud-expert` - Advanced GCP patterns
+- [mastering-gcloud-commands](https://github.com/SpillwaveSolutions/mastering-gcloud-commands) - Google Cloud CLI reference
+- [mastering-github-cli](https://github.com/SpillwaveSolutions/mastering-github-cli) - GitHub CLI reference
 
 ---
 
-<a href="https://skillzwave.ai/">Largest Agentic Marketplace for AI Agent Skills</a> and
-<a href="https://spillwave.com/">SpillWave: Leaders in AI Agent Development.</a>
+<a href="https://skillzwave.ai/">SkillzWave: Largest Agentic Marketplace for AI Agent Skills</a> | <a href="https://spillwave.com/">SpillWave: Leaders in AI Agent Development</a>
