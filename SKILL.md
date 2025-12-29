@@ -241,6 +241,19 @@ aws lambda wait function-updated --function-name my-function
 | **Cost** | Use lifecycle policies (S3/ECR) for automatic cleanup |
 | **Debugging** | Use `--debug` to see raw HTTP requests/responses |
 
+## Common Errors Quick Reference
+
+| Error | Cause | Fix |
+|:------|:------|:----|
+| `ExpiredToken` | Session credentials expired | Run `aws sso login` or `aws sts get-session-token` |
+| `AccessDenied` | Missing IAM permissions | Check IAM policy; use `--debug` to see required action |
+| `InvalidClientTokenId` | Invalid access key | Verify `AWS_ACCESS_KEY_ID` or run `aws configure` |
+| `UnauthorizedAccess` | Wrong region or account | Check `--region` flag and `aws sts get-caller-identity` |
+| `ThrottlingException` | API rate limit exceeded | Add retry logic with exponential backoff |
+| `NoCredentialProviders` | No credentials found | Check credential chain; run `aws configure list` |
+
+For detailed troubleshooting, see [Setup](references/setup.md#troubleshooting).
+
 ## When Not to Use
 
 - **AWS SDK code** — For boto3, AWS SDK for JavaScript, etc., use programming documentation
