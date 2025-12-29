@@ -2,90 +2,47 @@
 
 ## JMESPath Querying
 
-### Basic Queries
+JMESPath is a query language for JSON. Master these patterns to filter and transform AWS CLI output efficiently.
+
+### Query Patterns by Complexity
+
 ```bash
-# Select specific fields
+# SELECTION: Extract fields from results
+--query 'Reservations[*].Instances[*].[InstanceId,State.Name]'           # Array output
+--query 'Reservations[*].Instances[*].{ID:InstanceId,State:State.Name}'  # Named objects
+--query 'Reservations[0].Instances[0].InstanceId'                        # Single value
+
+# FILTERING: Match conditions
+--query 'Reservations[*].Instances[?State.Name==`running`].InstanceId'   # Exact match
+--query 'Contents[?Size > `1048576`].Key'                                # Comparison
+--query 'Roles[?starts_with(RoleName, `Lambda`)].RoleName'               # String functions
+--query 'Instances[?contains(Tags[?Key==`Name`].Value|[0], `prod`)]'     # Nested + contains
+
+# SORTING & AGGREGATION: Transform results
+--query 'sort_by(Images, &CreationDate)[-1].ImageId'                     # Sort, get last
+--query 'reverse(sort_by(Images, &CreationDate))[0:5]'                   # Newest 5
+--query 'length(Reservations[*].Instances[*][])'                         # Count
+--query 'sum(Volumes[*].Size)'                                           # Sum values
+--query 'max_by(Instances[], &LaunchTime).InstanceId'                    # Max by field
+
+# TRANSFORMATION: Reshape output
+--query 'Reservations[*].Instances[*].InstanceId[]'                      # Flatten arrays
+--query 'Reservations[*].Instances[*].InstanceId | join(`,`, @)'         # Join to string
+--query '{ID:InstanceId,HasIP:PublicIpAddress!=null}'                    # Conditional
+--query '{Name:FunctionName,Timeout:Timeout||`3`}'                       # Default values
+--query '{ID:InstanceId,Name:Tags[?Key==`Name`].Value|[0]}'              # Extract tag
+```
+
+### Practical Examples
+```bash
+# List running instances with names
 aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[*].[InstanceId, State.Name, PublicIpAddress]' \
+    --query 'Reservations[*].Instances[?State.Name==`running`].{ID:InstanceId,Name:Tags[?Key==`Name`].Value|[0]}' \
     --output table
 
-# Get single value
+# Chain filters: running t3.micro instances
 aws ec2 describe-instances \
-    --query 'Reservations[0].Instances[0].InstanceId' \
-    --output text
-
-# Named output (objects)
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[*].{ID:InstanceId,State:State.Name,IP:PublicIpAddress}'
-
-# Filter by value
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[?State.Name==`running`].InstanceId'
-
-# Filter with comparison
-aws s3api list-objects --bucket my-bucket \
-    --query 'Contents[?Size > `1048576`].{Key:Key, SizeMB:`Size / 1048576`}'
-
-# Filter with contains
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[?contains(Tags[?Key==`Name`].Value | [0], `prod`)].InstanceId'
-
-# Filter with starts_with
-aws iam list-roles \
-    --query 'Roles[?starts_with(RoleName, `Lambda`)].RoleName'
-```
-
-### Advanced Queries
-```bash
-# Sort results
-aws ec2 describe-images --owners self \
-    --query 'sort_by(Images, &CreationDate)[-1].ImageId' \
-    --output text
-
-# Reverse sort (newest first)
-aws ec2 describe-images --owners self \
-    --query 'reverse(sort_by(Images, &CreationDate))[0:5].{ID:ImageId,Date:CreationDate}'
-
-# Get length/count
-aws ec2 describe-instances \
-    --query 'length(Reservations[*].Instances[*][])'
-
-# Sum values
-aws ec2 describe-volumes \
-    --query 'sum(Volumes[*].Size)'
-
-# Max/Min
-aws ec2 describe-instances \
-    --query 'max_by(Reservations[*].Instances[], &LaunchTime).InstanceId'
-
-# Flatten nested arrays
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[*].InstanceId[]'
-
-# Join/concatenate
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[*].InstanceId | join(`,`, @)'
-
-# Conditional expression
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[*].{ID:InstanceId,HasPublicIP:PublicIpAddress!=null}'
-
-# Get tag value by key
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[*].{ID:InstanceId,Name:Tags[?Key==`Name`].Value|[0]}'
-```
-
-### Multi-level Filtering
-```bash
-# Complex filter chain
-aws ec2 describe-instances \
-    --query 'Reservations[*].Instances[?State.Name==`running`] |
-             [?InstanceType==`t3.micro`] |
-             [].{ID:InstanceId,AZ:Placement.AvailabilityZone}'
-
-# Nested object access with defaults
-aws lambda list-functions \
-    --query 'Functions[*].{Name:FunctionName,Memory:MemorySize,Timeout:Timeout||`3`}'
+    --query 'Reservations[*].Instances[?State.Name==`running`] | [?InstanceType==`t3.micro`] | [].{ID:InstanceId,AZ:Placement.AvailabilityZone}'
 ```
 
 ## Pagination & Limiting
