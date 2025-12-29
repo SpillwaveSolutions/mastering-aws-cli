@@ -334,10 +334,9 @@ export PATH="/usr/local/bin:$PATH"
 
 | Practice | Description |
 |:---------|:------------|
-| **Use SSO** | Prefer `aws configure sso` over long-lived access keys |
 | **Named profiles** | Use profiles for different accounts/roles |
 | **Disable pager** | Set `AWS_PAGER=""` in scripts |
 | **Explicit regions** | Always specify region in automation |
-| **MFA for sensitive ops** | Configure MFA on roles for destructive actions |
-| **Credential rotation** | Rotate access keys every 90 days |
-| **Use roles** | Prefer instance profiles/task roles over embedded keys |
+| **Credential rotation** | Rotate access keys every 90 days if using them |
+
+See [SKILL.md Best Practices](../SKILL.md#best-practices) for security recommendations including SSO, MFA, and roles.
