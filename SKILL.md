@@ -1,8 +1,7 @@
 ---
 name: mastering-aws-cli
-version: 2.0.0
 description: |
-  AWS CLI v2 quick-reference for experienced developers. Covers compute (Lambda, ECS, EKS), storage (S3, DynamoDB, Aurora), networking (VPC, SSM tunneling), security (IAM, Secrets Manager), and GitHub Actions CI/CD. Use when asked to "write aws commands", "debug aws access", "set up cross-account roles", or "configure aws cli".
+  AWS CLI v2 quick-reference for experienced developers. Covers compute (Lambda, ECS, EKS), storage (S3, DynamoDB, Aurora), networking (VPC, SSM tunneling), security (IAM, Secrets Manager), and GitHub Actions CI/CD. Use when asked to "write aws commands", "debug aws access", "set up cross-account roles", "configure aws cli", "assume role", "S3 bucket operations", or "deploy to ECS".
 triggers:
   - aws cli
   - aws command line
@@ -35,12 +34,14 @@ triggers:
   - ssm tunnel
   - kubectl eks
 category: cloud-infrastructure
-author: Spillwave
 license: MIT
 allowed-tools:
   - Read
   - Bash
   - WebFetch
+metadata:
+  version: 2.1.0
+  author: Spillwave
 ---
 
 # AWS CLI v2 Quick Reference
@@ -87,10 +88,10 @@ See [Advanced Patterns](references/advanced-patterns.md) for JMESPath mastery an
 
 | Flag | Description |
 |:-----|:------------|
-| `--profile <name>` | Use named profile from `~/.aws/credentials` |
-| `--region <region>` | Override default region (e.g., `us-east-1`) |
-| `--output <format>` | Output: `json` (default), `text`, `table`, `yaml`, `yaml-stream` |
-| `--query <jmespath>` | Filter output using JMESPath expressions |
+| `--profile NAME` | Use named profile from `~/.aws/credentials` |
+| `--region REGION` | Override default region (e.g., `us-east-1`) |
+| `--output FORMAT` | Output: `json` (default), `text`, `table`, `yaml`, `yaml-stream` |
+| `--query EXPR` | Filter output using JMESPath expressions |
 | `--no-paginate` | Disable auto-pagination (first page only) |
 | `--dry-run` | Check permissions without executing (EC2, etc.) |
 | `--debug` | Verbose HTTP/API debug logging |
@@ -133,7 +134,7 @@ Need streaming/messaging?
 ```
 Need security/access management?
 ├── Users, roles, policies ──────────► IAM (references/iam-security.md)
-├── Secrets & credentials ───────────► Secrets Manager/SSM (references/secrets-parameters.md)
+├── Secrets & credentials ───────────► Secrets Manager/SSM (references/private-parameters.md)
 ├── Private network access ──────────► VPC (references/vpc-networking.md)
 └── Secure tunneling ────────────────► SSM/Bastion (references/bastion-tunneling.md)
 ```
@@ -154,7 +155,7 @@ Need security/access management?
 | [Glue](references/glue.md) | Catalog, crawlers, ETL jobs, workflows | `glue`, `etl`, `catalog`, `crawler` |
 | [MSK](references/msk.md) | Kafka clusters, serverless, configuration | `msk`, `kafka`, `streaming` |
 | [Kinesis](references/kinesis.md) | Data streams, Firehose, consumers | `kinesis`, `stream`, `firehose` |
-| [Secrets & Params](references/secrets-parameters.md) | Parameter Store, Secrets Manager, rotation | `ssm`, `secrets`, `parameter`, `rotation` |
+| [Secrets & Params](references/private-parameters.md) | Parameter Store, Secrets Manager, rotation | `ssm`, `secrets`, `parameter`, `rotation` |
 | [VPC & Networking](references/vpc-networking.md) | VPCs, subnets, security groups, endpoints | `vpc`, `subnet`, `security-group`, `endpoint` |
 | [Bastion & Tunneling](references/bastion-tunneling.md) | SSM Session Manager, port forwarding | `bastion`, `tunnel`, `ssm`, `ssh` |
 | [GitHub CI/CD](references/github-cicd.md) | OIDC, GitHub Actions, CodeBuild | `github`, `actions`, `oidc`, `cicd` |
@@ -251,29 +252,47 @@ aws lambda wait function-updated --function-name my-function
 
 ```bash
 # Identity & Access
-aws sts get-caller-identity                    # Who am I?
-aws sts assume-role --role-arn ... --role-session-name ...
+aws sts get-caller-identity
+# → {"Account": "123456789012", "UserId": "AIDAEXAMPLE", "Arn": "arn:aws:iam::123456789012:user/dev"}
+
+aws sts assume-role --role-arn arn:aws:iam::123456789012:role/Admin --role-session-name mysession
+# → {"Credentials": {"AccessKeyId": "ASIA...", "SecretAccessKey": "...", "SessionToken": "..."}}
 
 # S3
-aws s3 ls                                      # List buckets
+aws s3 ls
+# → 2024-01-15 bucket-name-1
+# → 2024-02-20 bucket-name-2
+
 aws s3 sync ./local s3://bucket/prefix --delete
 
 # Lambda
 aws lambda invoke --function-name fn response.json
+# → {"StatusCode": 200, "ExecutedVersion": "$LATEST"}
+
 aws lambda update-function-code --function-name fn --zip-file fileb://code.zip
+# → {"FunctionName": "fn", "LastModified": "2024-12-28T...", "State": "Active"}
 
 # ECS
 aws ecs list-clusters
-aws ecs update-service --cluster x --service y --force-new-deployment
+# → {"clusterArns": ["arn:aws:ecs:us-east-1:123456789012:cluster/prod"]}
+
+aws ecs update-service --cluster prod --service api --force-new-deployment
 
 # EKS
-aws eks update-kubeconfig --name cluster-name
+aws eks update-kubeconfig --name my-cluster
+# → Added new context arn:aws:eks:us-east-1:123456789012:cluster/my-cluster
+
 aws eks list-clusters
+# → {"clusters": ["my-cluster", "dev-cluster"]}
 
 # Secrets
-aws secretsmanager get-secret-value --secret-id name --query SecretString --output text
-aws ssm get-parameter --name /path/param --with-decryption
+aws secretsmanager get-secret-value --secret-id prod/api/key --query SecretString --output text
+# → sk_live_xxxxxxxxxxxxx
+
+aws ssm get-parameter --name /app/prod/db/host --with-decryption --query Parameter.Value --output text
+# → db.example.com
 
 # Debugging
-aws ssm start-session --target i-instanceid
+aws ssm start-session --target i-0123456789abcdef0
+# → Starting session with SessionId: user-0a1b2c3d4e5f67890
 ```

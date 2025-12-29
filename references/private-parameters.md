@@ -172,7 +172,7 @@ aws secretsmanager describe-secret --secret-id "prod/db/credentials" --query "Ro
 # Schedule deletion (7-30 days)
 aws secretsmanager delete-secret --secret-id "prod/old-key" --recovery-window-in-days 7
 
-# Force immediate deletion (cannot recover\!)
+# Force immediate deletion (cannot recover!)
 aws secretsmanager delete-secret --secret-id "prod/old-key" --force-delete-without-recovery
 
 # Cancel deletion/restore
